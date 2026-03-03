@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>UNO Multiplayer</title>
+
+<style>
+body{
+    margin:0;
+    font-family:'Segoe UI',sans-serif;
+    background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+    color:white;
+    text-align:center;
+}
+
+h2{ margin-top:15px; }
+
+input{
+    padding:8px;
+    margin:5px;
+    border-radius:6px;
+    border:none;
+}
+
+button{
+    padding:8px 14px;
+    margin:5px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:bold;
+    transition:0.2s;
+    background:white;
+}
+
+button:hover{
+    transform:scale(1.08);
+}
+
+#players{
+    display:flex;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:10px;
+}
+
+.player-box{
+    background:rgba(255,255,255,0.15);
+    padding:8px 12px;
+    border-radius:8px;
+    min-width:100px;
+}
+
+#currentTurn{
+    font-size:18px;
+    font-weight:bold;
+    padding:8px;
+    display:inline-block;
+    border-radius:6px;
+}
+
+.active-turn{
+    animation:glow 1s infinite alternate;
+}
+
+@keyframes glow{
+    from{ box-shadow:0 0 5px white; }
+    to{ box-shadow:0 0 20px #00ffcc; }
+}
+
+#tableCard{
+    width:120px;
+    height:170px;
+    margin:20px auto;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:bold;
+    font-size:18px;
+    border-radius:15px;
+    box-shadow:0 8px 20px rgba(0,0,0,0.5);
+}
+
+#yourCards{
+    margin-top:15px;
+    display:flex;
+    justify-content:center;
+    flex-wrap:wrap;
+}
+
+.card{
+    width:90px;
+    height:140px;
+    margin:8px;
+    border-radius:15px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:bold;
+    font-size:16px;
+    color:white;
+    cursor:pointer;
+    box-shadow:0 6px 12px rgba(0,0,0,0.4);
+    transition:0.2s ease;
+}
+
+.card:hover{
+    transform:translateY(-20px) scale(1.1);
+}
+
+.reverse-effect{
+    animation:spinReverse 0.6s ease;
+}
+
+@keyframes spinReverse{
+    from{ transform:rotate(0deg); }
+    to{ transform:rotate(360deg); }
+}
+
+.skip-effect{
+    animation:flashSkip 0.6s ease;
+}
+
+@keyframes flashSkip{
+    0%{ opacity:1; }
+    50%{ opacity:0.3; }
+    100%{ opacity:1; }
+}
+
+#colorPicker{
+    margin-top:15px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>UNO Multiplayer</h2>
+
+<input id="username" placeholder="Your Name">
+<input id="room" placeholder="Room Code">
+<br>
+<button onclick="createRoom()">Create Room</button>
+<button onclick="joinRoom()">Join Room</button>
+<button onclick="ready()">Ready</button>
+<button id="startBtn" onclick="startGame()" style="display:none;">Start Game</button>
+<button id="endBtn" onclick="endGame()" style="display:none;">End Game</button>
+<button onclick="drawCard()">Draw</button>
+<button onclick="callUNO()">UNO</button>
+
+<h3 id="playerCount">Players: 0 / 10</h3>
+<div id="players"></div>
+
+<hr>
+
+<h3>Current Turn:</h3>
+<div id="currentTurn"></div>
+
+<h3>Table Card:</h3>
+<div id="tableCard"></div>
+
+<h3>Your Cards:</h3>
+<div id="yourCards"></div>
+
+<div id="colorPicker" style="display:none;">
+    <h3>Choose Color</h3>
+    <button onclick="chooseColor('Red')">Red</button>
+    <button onclick="chooseColor('Green')">Green</button>
+    <button onclick="chooseColor('Blue')">Blue</button>
+    <button onclick="chooseColor('Yellow')">Yellow</button>
+</div>
+
+<script>
+let socket=null;
+let username="";
+let isHost=false;
+
+function createRoom(){
+    const code=Math.floor(100000+Math.random()*900000);
+    document.getElementById("room").value=code;
+}
+
+function joinRoom(){
+    username=document.getElementById("username").value;
+    const room=document.getElementById("room").value;
+
+    if(!username || !room){ alert("Enter details"); return; }
+
+    socket=new WebSocket(
+        "ws://"+window.location.host+"/ws/game/"+room+"/"
+    );
+
+    socket.onopen=function(){
+        socket.send(JSON.stringify({
+            type:"join",
+            username:username
+        }));
+    };
+
+    socket.onmessage=function(e){
+        const data=JSON.parse(e.data);
+
+        if(data.type==="players"){
+            document.getElementById("playerCount").innerText=
+                "Players: "+data.count+" / 10";
+
+            const container=document.getElementById("players");
+            container.innerHTML="";
+            isHost=false;
+
+            data.players.forEach(p=>{
+                const div=document.createElement("div");
+                div.className="player-box";
+                div.innerHTML=
+                    p.name+
+                    (p.is_host?" 👑":"")+
+                    (p.ready?" ✅":" ❌");
+
+                if(p.name===username && p.is_host){
+                    isHost=true;
+                }
+
+                container.appendChild(div);
+            });
+
+            document.getElementById("startBtn").style.display=
+                isHost?"inline-block":"none";
+
+            document.getElementById("endBtn").style.display=
+                isHost?"inline-block":"none";
+        }
+
+        if(data.type==="your_cards"){
+            const container=document.getElementById("yourCards");
+            container.innerHTML="";
+
+            data.cards.forEach(card=>{
+                const div=document.createElement("div");
+                div.className="card";
+                div.innerText=card.color==="Wild"?
+                    card.value:
+                    card.color+" "+card.value;
+
+                if(card.color==="Red") div.style.background="#e53935";
+                if(card.color==="Green") div.style.background="#43a047";
+                if(card.color==="Blue") div.style.background="#1e88e5";
+                if(card.color==="Yellow") div.style.background="#fdd835";
+                if(card.color==="Wild") div.style.background="#212121";
+
+                div.onclick=()=>playCard(card);
+
+                container.appendChild(div);
+            });
+        }
+
+        if(data.type==="table_card"){
+            const table=document.getElementById("tableCard");
+            table.innerText=data.card.color==="Wild"?
+                data.card.value:
+                data.card.color+" "+data.card.value;
+
+            if(data.card.color==="Red") table.style.background="#e53935";
+            if(data.card.color==="Green") table.style.background="#43a047";
+            if(data.card.color==="Blue") table.style.background="#1e88e5";
+            if(data.card.color==="Yellow") table.style.background="#fdd835";
+            if(data.card.color==="Wild") table.style.background="#212121";
+
+            if(data.card.value==="Reverse"){
+                table.classList.add("reverse-effect");
+                setTimeout(()=>table.classList.remove("reverse-effect"),600);
+            }
+
+            if(data.card.value==="Skip"){
+                table.classList.add("skip-effect");
+                setTimeout(()=>table.classList.remove("skip-effect"),600);
+            }
+        }
+
+        if(data.type==="turn"){
+            const turnDiv=document.getElementById("currentTurn");
+            turnDiv.innerText=data.player;
+
+            if(data.player===username){
+                turnDiv.classList.add("active-turn");
+            }else{
+                turnDiv.classList.remove("active-turn");
+            }
+        }
+
+        if(data.type==="choose_color"){
+            document.getElementById("colorPicker").style.display="block";
+        }
+
+        if(data.type==="win"){
+            alert(data.player+" wins!");
+        }
+
+        if(data.type==="game_ended"){
+            alert("Game Ended by Host");
+        }
+    };
+}
+
+function ready(){
+    socket.send(JSON.stringify({type:"ready",username:username}));
+}
+
+function startGame(){
+    socket.send(JSON.stringify({type:"start",username:username}));
+}
+
+function endGame(){
+    socket.send(JSON.stringify({type:"end_game",username:username}));
+}
+
+function drawCard(){
+    socket.send(JSON.stringify({type:"draw",username:username}));
+}
+
+function playCard(card){
+    socket.send(JSON.stringify({
+        type:"play_card",
+        username:username,
+        card:card
+    }));
+}
+
+function chooseColor(color){
+    document.getElementById("colorPicker").style.display="none";
+    socket.send(JSON.stringify({
+        type:"choose_color",
+        username:username,
+        color:color
+    }));
+}
+
+function callUNO(){
+    socket.send(JSON.stringify({
+        type:"uno",
+        username:username
+    }));
+}
+</script>
+
+</body>
+</html>
