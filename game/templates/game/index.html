@@ -7,92 +7,134 @@
 <style>
 
 body{
+margin:0;
 font-family:Arial;
-background:#1c1f26;
+background:#111827;
 color:white;
 text-align:center;
-margin:0;
 }
+
+/* top bar */
 
 .topbar{
-background:#111;
-padding:10px;
+background:#1f2937;
+padding:12px;
+display:flex;
+justify-content:center;
+gap:10px;
+flex-wrap:wrap;
 }
 
-button{
-padding:8px 15px;
-border:none;
-border-radius:6px;
-margin:5px;
-cursor:pointer;
-}
+/* players */
 
 #players{
 display:flex;
 justify-content:center;
-gap:10px;
-margin-top:10px;
+gap:15px;
+margin-top:15px;
+flex-wrap:wrap;
 }
 
 .player{
-background:#2c2f36;
-padding:8px;
-border-radius:8px;
+background:#1f2937;
+padding:8px 14px;
+border-radius:10px;
+display:flex;
+align-items:center;
+gap:8px;
 }
+
+/* avatar */
+
+.avatar{
+width:32px;
+height:32px;
+border-radius:50%;
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:bold;
+background:#6366f1;
+}
+
+/* table */
+
+#tableArea{
+margin-top:25px;
+}
+
+#table{
+display:flex;
+justify-content:center;
+margin-top:10px;
+}
+
+/* cards */
 
 .card{
 width:80px;
 height:120px;
 border-radius:12px;
-display:inline-flex;
+display:flex;
 align-items:center;
 justify-content:center;
-margin:6px;
-font-size:22px;
+font-size:24px;
 font-weight:bold;
 cursor:pointer;
+margin:5px;
 transition:transform .2s;
-color:white;
 }
 
 .card:hover{
-transform:translateY(-10px);
+transform:translateY(-12px);
 }
 
-.red{background:#e53935}
-.blue{background:#1e88e5}
-.green{background:#43a047}
-.yellow{background:#fdd835;color:black}
+/* colors */
+
+.red{background:#ef4444}
+.blue{background:#3b82f6}
+.green{background:#22c55e}
+.yellow{background:#facc15;color:black}
 .wild{background:black}
+
+/* hand */
 
 #hand{
 margin-top:20px;
-}
-
-#table{
-margin-top:20px;
-font-size:28px;
-}
-
-.modal{
-position:fixed;
-top:0;
-left:0;
-right:0;
-bottom:0;
-background:rgba(0,0,0,.7);
-display:none;
-align-items:center;
+display:flex;
+flex-wrap:wrap;
 justify-content:center;
 }
 
-.modal-content{
-background:#222;
-padding:20px;
-border-radius:10px;
+/* stack indicator */
+
+#stack{
+font-size:22px;
+color:#f87171;
+margin-top:5px;
+}
+
+/* turn */
+
+#turn{
+margin-top:10px;
+font-weight:bold;
+}
+
+/* mobile */
+
+@media(max-width:700px){
+
+.card{
+width:60px;
+height:90px;
+font-size:18px;
+}
+
 }
 
 </style>
+
 </head>
 
 <body>
@@ -105,6 +147,7 @@ border-radius:10px;
 <button onclick="join()">Join</button>
 <button onclick="start()">Start</button>
 <button onclick="draw()">Draw</button>
+<button onclick="uno()">UNO</button>
 
 </div>
 
@@ -112,33 +155,19 @@ border-radius:10px;
 
 <div id="players"></div>
 
+<div id="tableArea">
+
+<h3>Table Card</h3>
+
 <div id="table"></div>
 
+<div id="stack"></div>
+
+</div>
+
+<h3>Your Cards</h3>
+
 <div id="hand"></div>
-
-<div id="drawModal" class="modal">
-<div class="modal-content">
-
-<h3>You drew a playable card</h3>
-
-<button id="playDrawn">Play</button>
-<button id="keepDrawn">Keep</button>
-
-</div>
-</div>
-
-<div id="wildModal" class="modal">
-<div class="modal-content">
-
-<h3>Choose Color</h3>
-
-<button onclick="chooseColor('Red')">Red</button>
-<button onclick="chooseColor('Blue')">Blue</button>
-<button onclick="chooseColor('Green')">Green</button>
-<button onclick="chooseColor('Yellow')">Yellow</button>
-
-</div>
-</div>
 
 <script>
 
@@ -175,15 +204,11 @@ socket.onmessage=(e)=>{
 let data=JSON.parse(e.data)
 
 if(data.type==="players_update"){
-updatePlayers(data.players)
+renderPlayers(data.players)
 }
 
 if(data.type==="state"){
 renderState(data)
-}
-
-if(data.type==="draw_option"){
-showDrawOption(data.card)
 }
 
 if(data.type==="game_over"){
@@ -194,12 +219,31 @@ alert("Loser: "+data.loser)
 
 }
 
-function updatePlayers(players){
+function avatar(name){
+
+let colors=["#ef4444","#3b82f6","#22c55e","#f59e0b"]
+
+let c=colors[name.length%colors.length]
+
+return `<div class="avatar" style="background:${c}">
+${name[0]}
+</div>`
+
+}
+
+function renderPlayers(players){
 
 let html=""
 
 players.forEach(p=>{
-html+=`<div class="player">${p}</div>`
+
+html+=`
+<div class="player">
+${avatar(p)}
+${p}
+</div>
+`
+
 })
 
 document.getElementById("players").innerHTML=html
@@ -213,6 +257,9 @@ document.getElementById("turn").innerText="Turn: "+data.turn
 renderTable(data.table)
 
 renderHand(data.hand)
+
+document.getElementById("stack").innerText=
+data.pending>0?`+${data.pending}`:""
 
 }
 
@@ -261,58 +308,18 @@ socket.send(JSON.stringify({type:"draw"}))
 
 }
 
-function play(card){
+function uno(){
 
-if(card.color==="Wild"){
-
-wildCard=card
-document.getElementById("wildModal").style.display="flex"
-return
+socket.send(JSON.stringify({type:"uno"}))
 
 }
+
+function play(card){
 
 socket.send(JSON.stringify({
 type:"play",
 card:card
 }))
-
-}
-
-function chooseColor(color){
-
-socket.send(JSON.stringify({
-type:"play",
-card:wildCard,
-color:color
-}))
-
-document.getElementById("wildModal").style.display="none"
-
-}
-
-function showDrawOption(card){
-
-drawnCard=card
-
-document.getElementById("drawModal").style.display="flex"
-
-}
-
-document.getElementById("playDrawn").onclick=()=>{
-
-play(drawnCard)
-
-document.getElementById("drawModal").style.display="none"
-
-}
-
-document.getElementById("keepDrawn").onclick=()=>{
-
-socket.send(JSON.stringify({
-type:"keep"
-}))
-
-document.getElementById("drawModal").style.display="none"
 
 }
 
