@@ -49,6 +49,17 @@ width:100vw;
 position:relative;
 }
 
+/* ---------- CONTROLS ---------- */
+
+#controls{
+position:absolute;
+top:20px;
+left:50%;
+transform:translateX(-50%);
+display:flex;
+gap:10px;
+}
+
 /* ---------- TABLE ---------- */
 
 #table{
@@ -101,13 +112,14 @@ height:200px;
 position:absolute;
 width:90px;
 height:130px;
-border-radius:10px;
+border-radius:12px;
 display:flex;
 align-items:center;
 justify-content:center;
-font-size:22px;
+font-size:26px;
 font-weight:bold;
 cursor:pointer;
+box-shadow:0 4px 10px rgba(0,0,0,0.4);
 transition:0.2s;
 }
 
@@ -199,7 +211,11 @@ opacity:1;
 
 <h3 id="roomDisplay"></h3>
 
+<div id="controls">
 <button onclick="startGame()">Start Game</button>
+<button onclick="drawCard()">Draw Card</button>
+<button onclick="pressUNO()">UNO</button>
+</div>
 
 <div id="playersCircle"></div>
 
@@ -288,6 +304,27 @@ function startGame(){
 
 socket.send(JSON.stringify({
 type:"start"
+}))
+
+}
+
+/* DRAW CARD */
+
+function drawCard(){
+
+socket.send(JSON.stringify({
+type:"draw"
+}))
+
+}
+
+/* UNO */
+
+function pressUNO(){
+
+socket.send(JSON.stringify({
+type:"uno",
+username:username
 }))
 
 }
@@ -406,7 +443,7 @@ card:card
 
 }
 
-/* STACK ANIMATION */
+/* STACK */
 
 function stackAnimation(value){
 
