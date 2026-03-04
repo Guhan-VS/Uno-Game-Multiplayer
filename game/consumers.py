@@ -72,6 +72,9 @@ class GameConsumer(AsyncWebsocketConsumer):
         if data["type"]=="keep":
             await self.keep_card()
 
+        if data["type"]=="uno":
+            await self.call_uno()
+
 
     async def join_player(self,data):
 
@@ -93,7 +96,8 @@ class GameConsumer(AsyncWebsocketConsumer):
         rooms[self.room]["players"].append({
             "username":username,
             "channel":self.channel_name,
-            "hand":[]
+            "hand":[],
+            "uno_called":False
         })
 
         await self.broadcast_players()
@@ -234,8 +238,18 @@ class GameConsumer(AsyncWebsocketConsumer):
             room["turn"]=(room["turn"]+room["direction"])%len(players)
 
 
+        if len(player["hand"])==1:
+            player["uno_called"]=False
+
+
+        if len(player["hand"])==1 and not player["uno_called"]:
+            pass
+
+
         room["turn"]=(room["turn"]+room["direction"])%len(players)
 
+
+        await self.check_uno_penalty()
 
         await self.check_loser()
 
@@ -317,6 +331,29 @@ class GameConsumer(AsyncWebsocketConsumer):
         room["turn"]=(room["turn"]+room["direction"])%len(players)
 
         await self.broadcast_state()
+
+
+    async def call_uno(self):
+
+        room=rooms[self.room]
+        players=room["players"]
+
+        player=players[room["turn"]]
+
+        if player["channel"]==self.channel_name:
+            player["uno_called"]=True
+
+
+    async def check_uno_penalty(self):
+
+        room=rooms[self.room]
+
+        for p in room["players"]:
+
+            if len(p["hand"])==1 and not p["uno_called"]:
+
+                p["hand"].append(room["deck"].pop())
+                p["hand"].append(room["deck"].pop())
 
 
     async def check_loser(self):
