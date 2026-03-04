@@ -6,7 +6,6 @@ rooms = {}
 
 colors = ["Red","Blue","Green","Yellow"]
 
-
 def create_deck():
 
     deck = []
@@ -70,6 +69,9 @@ class GameConsumer(AsyncWebsocketConsumer):
         if data["type"]=="draw":
             await self.draw_card()
 
+        if data["type"]=="keep":
+            await self.keep_card()
+
 
     async def join_player(self,data):
 
@@ -84,7 +86,8 @@ class GameConsumer(AsyncWebsocketConsumer):
                 "turn":0,
                 "direction":1,
                 "pending_draw":0,
-                "started":False
+                "started":False,
+                "drawn_card":None
             }
 
         rooms[self.room]["players"].append({
@@ -129,8 +132,8 @@ class GameConsumer(AsyncWebsocketConsumer):
         room["table"]=table
 
         room["turn"]=0
-        room["pending_draw"]=0
         room["direction"]=1
+        room["pending_draw"]=0
         room["started"]=True
 
         await self.broadcast_state()
@@ -209,6 +212,7 @@ class GameConsumer(AsyncWebsocketConsumer):
 
         player["hand"].remove(card)
 
+
         if card["color"]=="Wild" and "color" in data:
             room["table"]={"color":data["color"],"value":card["value"]}
         else:
@@ -227,7 +231,6 @@ class GameConsumer(AsyncWebsocketConsumer):
 
 
         if card["value"]=="Skip":
-
             room["turn"]=(room["turn"]+room["direction"])%len(players)
 
 
@@ -250,17 +253,66 @@ class GameConsumer(AsyncWebsocketConsumer):
             return
 
 
-        draw=room["pending_draw"] if room["pending_draw"]>0 else 1
+        if room["pending_draw"]>0:
 
-        for _ in range(draw):
+            draw=room["pending_draw"]
 
-            if len(room["deck"])==0:
-                room["deck"]=create_deck()
+            for _ in range(draw):
 
-            player["hand"].append(room["deck"].pop())
+                if len(room["deck"])==0:
+                    room["deck"]=create_deck()
+
+                player["hand"].append(room["deck"].pop())
+
+            room["pending_draw"]=0
+
+            room["turn"]=(room["turn"]+room["direction"])%len(players)
+
+            await self.broadcast_state()
+
+            return
 
 
-        room["pending_draw"]=0
+        card=room["deck"].pop()
+
+        player["hand"].append(card)
+
+        table=room["table"]
+
+        playable=(
+            card["color"]==table["color"]
+            or card["value"]==table["value"]
+            or card["color"]=="Wild"
+        )
+
+        if playable:
+
+            room["drawn_card"]=card
+
+            await self.send(text_data=json.dumps({
+                "type":"draw_option",
+                "card":card
+            }))
+
+            return
+
+
+        room["turn"]=(room["turn"]+room["direction"])%len(players)
+
+        await self.broadcast_state()
+
+
+    async def keep_card(self):
+
+        room=rooms[self.room]
+        players=room["players"]
+
+        player=players[room["turn"]]
+
+        if player["channel"]!=self.channel_name:
+            return
+
+        room["drawn_card"]=None
 
         room["turn"]=(room["turn"]+room["direction"])%len(players)
 

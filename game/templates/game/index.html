@@ -1,11 +1,103 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <title>UNO Multiplayer</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#1c1f26;
+color:white;
+text-align:center;
+margin:0;
+}
+
+.topbar{
+background:#111;
+padding:10px;
+}
+
+button{
+padding:8px 15px;
+border:none;
+border-radius:6px;
+margin:5px;
+cursor:pointer;
+}
+
+#players{
+display:flex;
+justify-content:center;
+gap:10px;
+margin-top:10px;
+}
+
+.player{
+background:#2c2f36;
+padding:8px;
+border-radius:8px;
+}
+
+.card{
+width:80px;
+height:120px;
+border-radius:12px;
+display:inline-flex;
+align-items:center;
+justify-content:center;
+margin:6px;
+font-size:22px;
+font-weight:bold;
+cursor:pointer;
+transition:transform .2s;
+color:white;
+}
+
+.card:hover{
+transform:translateY(-10px);
+}
+
+.red{background:#e53935}
+.blue{background:#1e88e5}
+.green{background:#43a047}
+.yellow{background:#fdd835;color:black}
+.wild{background:black}
+
+#hand{
+margin-top:20px;
+}
+
+#table{
+margin-top:20px;
+font-size:28px;
+}
+
+.modal{
+position:fixed;
+top:0;
+left:0;
+right:0;
+bottom:0;
+background:rgba(0,0,0,.7);
+display:none;
+align-items:center;
+justify-content:center;
+}
+
+.modal-content{
+background:#222;
+padding:20px;
+border-radius:10px;
+}
+
+</style>
 </head>
+
 <body>
 
-<h1>UNO Multiplayer</h1>
+<div class="topbar">
 
 <input id="username" placeholder="Name">
 <input id="room" placeholder="Room">
@@ -14,29 +106,60 @@
 <button onclick="start()">Start</button>
 <button onclick="draw()">Draw</button>
 
-<h3>Players</h3>
+</div>
+
+<h3 id="turn"></h3>
+
 <div id="players"></div>
 
-<h3>Table</h3>
 <div id="table"></div>
 
-<h3>Your Cards</h3>
 <div id="hand"></div>
+
+<div id="drawModal" class="modal">
+<div class="modal-content">
+
+<h3>You drew a playable card</h3>
+
+<button id="playDrawn">Play</button>
+<button id="keepDrawn">Keep</button>
+
+</div>
+</div>
+
+<div id="wildModal" class="modal">
+<div class="modal-content">
+
+<h3>Choose Color</h3>
+
+<button onclick="chooseColor('Red')">Red</button>
+<button onclick="chooseColor('Blue')">Blue</button>
+<button onclick="chooseColor('Green')">Green</button>
+<button onclick="chooseColor('Yellow')">Yellow</button>
+
+</div>
+</div>
 
 <script>
 
 let socket
+let drawnCard=null
+let wildCard=null
+
+function wsURL(room){
+
+let protocol=location.protocol==="https:"?"wss://":"ws://"
+
+return protocol+location.host+"/ws/game/"+room+"/"
+
+}
 
 function join(){
 
 let room=document.getElementById("room").value
 let username=document.getElementById("username").value
 
-socket=new WebSocket(
-(location.protocol==="https:"?"wss://":"ws://")
-+window.location.host
-+"/ws/game/"+room+"/"
-)
+socket=new WebSocket(wsURL(room))
 
 socket.onopen=()=>{
 
@@ -52,22 +175,15 @@ socket.onmessage=(e)=>{
 let data=JSON.parse(e.data)
 
 if(data.type==="players_update"){
-document.getElementById("players").innerText=data.players.join(", ")
+updatePlayers(data.players)
 }
 
 if(data.type==="state"){
+renderState(data)
+}
 
-document.getElementById("table").innerText=
-data.table.color+" "+data.table.value
-
-let h=""
-
-data.hand.forEach(c=>{
-h+=`<button onclick='play(${JSON.stringify(c)})'>${c.color} ${c.value}</button>`
-})
-
-document.getElementById("hand").innerHTML=h
-
+if(data.type==="draw_option"){
+showDrawOption(data.card)
 }
 
 if(data.type==="game_over"){
@@ -78,16 +194,126 @@ alert("Loser: "+data.loser)
 
 }
 
+function updatePlayers(players){
+
+let html=""
+
+players.forEach(p=>{
+html+=`<div class="player">${p}</div>`
+})
+
+document.getElementById("players").innerHTML=html
+
+}
+
+function renderState(data){
+
+document.getElementById("turn").innerText="Turn: "+data.turn
+
+renderTable(data.table)
+
+renderHand(data.hand)
+
+}
+
+function renderTable(card){
+
+let color=card.color.toLowerCase()
+
+let html=`<div class="card ${color}">
+${card.value}
+</div>`
+
+document.getElementById("table").innerHTML=html
+
+}
+
+function renderHand(cards){
+
+let html=""
+
+cards.forEach(c=>{
+
+let color=c.color.toLowerCase()
+
+html+=`
+<div class="card ${color}"
+onclick='play(${JSON.stringify(c)})'>
+${c.value}
+</div>
+`
+
+})
+
+document.getElementById("hand").innerHTML=html
+
+}
+
 function start(){
+
 socket.send(JSON.stringify({type:"start"}))
+
 }
 
 function draw(){
+
 socket.send(JSON.stringify({type:"draw"}))
+
 }
 
 function play(card){
-socket.send(JSON.stringify({type:"play",card:card}))
+
+if(card.color==="Wild"){
+
+wildCard=card
+document.getElementById("wildModal").style.display="flex"
+return
+
+}
+
+socket.send(JSON.stringify({
+type:"play",
+card:card
+}))
+
+}
+
+function chooseColor(color){
+
+socket.send(JSON.stringify({
+type:"play",
+card:wildCard,
+color:color
+}))
+
+document.getElementById("wildModal").style.display="none"
+
+}
+
+function showDrawOption(card){
+
+drawnCard=card
+
+document.getElementById("drawModal").style.display="flex"
+
+}
+
+document.getElementById("playDrawn").onclick=()=>{
+
+play(drawnCard)
+
+document.getElementById("drawModal").style.display="none"
+
+}
+
+document.getElementById("keepDrawn").onclick=()=>{
+
+socket.send(JSON.stringify({
+type:"keep"
+}))
+
+document.getElementById("drawModal").style.display="none"
+
 }
 
 </script>
