@@ -6,10 +6,8 @@ import game.routing
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'uno_project.settings')
 
-django_asgi_app = get_asgi_application()
-
 application = ProtocolTypeRouter({
-    "http": django_asgi_app,
+    "http": get_asgi_application(),
     "websocket": AuthMiddlewareStack(
         URLRouter(
             game.routing.websocket_urlpatterns

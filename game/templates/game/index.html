@@ -1,262 +1,93 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>UNO Multiplayer</title>
-    <meta charset="UTF-8">
-
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #1f3c88, #1c2541);
-            color: white;
-            text-align: center;
-        }
-
-        h1 {
-            margin-top: 30px;
-        }
-
-        input {
-            padding: 8px;
-            margin: 5px;
-            border-radius: 6px;
-            border: none;
-        }
-
-        button {
-            padding: 8px 15px;
-            margin: 5px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        button:hover {
-            opacity: 0.8;
-        }
-
-        #playersList div {
-            background: rgba(255,255,255,0.15);
-            padding: 8px;
-            margin: 5px auto;
-            width: 300px;
-            border-radius: 8px;
-        }
-
-        .card {
-            width: 80px;
-            height: 120px;
-            border-radius: 10px;
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-            margin: 5px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .card:hover {
-            transform: translateY(-10px);
-        }
-
-        #tableCard {
-            margin-top: 20px;
-        }
-
-        #yourCards {
-            margin-top: 20px;
-        }
-    </style>
+<title>UNO Multiplayer</title>
 </head>
 <body>
 
 <h1>UNO Multiplayer</h1>
 
-<input id="username" placeholder="Your Name">
-<input id="roomCode" placeholder="Room Code">
+<input id="username" placeholder="Name">
+<input id="room" placeholder="Room">
 
-<br>
+<button onclick="join()">Join</button>
+<button onclick="start()">Start</button>
+<button onclick="draw()">Draw</button>
 
-<button onclick="createRoom()">Create Room</button>
-<button onclick="joinRoom()">Join Room</button>
-<button onclick="readyUp()">Ready</button>
-<button onclick="drawCard()">Draw</button>
-<button onclick="pressUNO()">UNO</button>
+<h3>Players</h3>
+<div id="players"></div>
 
-<h3 id="playersCount">Players: 0</h3>
-<div id="playersList"></div>
+<h3>Table</h3>
+<div id="table"></div>
 
-<hr>
-
-<h3>Current Turn:</h3>
-<div id="currentTurn"></div>
-
-<h3>Table Card:</h3>
-<div id="tableCard"></div>
-
-<h3>Your Cards:</h3>
-<div id="yourCards"></div>
+<h3>Your Cards</h3>
+<div id="hand"></div>
 
 <script>
 
-let socket = null;
-let currentRoom = null;
-let username = null;
+let socket
 
-function connectSocket(room) {
+function join(){
 
-    if (socket) {
-        socket.close();
-    }
+let room=document.getElementById("room").value
+let username=document.getElementById("username").value
 
-    const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+socket=new WebSocket(
+(location.protocol==="https:"?"wss://":"ws://")
++window.location.host
++"/ws/game/"+room+"/"
+)
 
-    socket = new WebSocket(
-        protocol + window.location.host + "/ws/game/" + room + "/"
-    );
+socket.onopen=()=>{
 
-    socket.onopen = function() {
-        console.log("Connected to:", room);
+socket.send(JSON.stringify({
+type:"join",
+username:username
+}))
 
-        socket.send(JSON.stringify({
-            type: "join",
-            username: username
-        }));
-    };
-
-    socket.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        handleMessage(data);
-    };
-
-    socket.onerror = function(error) {
-        console.log("WebSocket Error:", error);
-    };
-
-    socket.onclose = function() {
-        console.log("Socket closed");
-    };
 }
 
-function createRoom() {
-    username = document.getElementById("username").value;
-    currentRoom = Math.floor(100000 + Math.random() * 900000).toString();
-    document.getElementById("roomCode").value = currentRoom;
-    connectSocket(currentRoom);
+socket.onmessage=(e)=>{
+
+let data=JSON.parse(e.data)
+
+if(data.type==="players_update"){
+document.getElementById("players").innerText=data.players.join(", ")
 }
 
-function joinRoom() {
-    username = document.getElementById("username").value;
-    currentRoom = document.getElementById("roomCode").value;
+if(data.type==="state"){
 
-    if (!currentRoom) {
-        alert("Enter Room Code");
-        return;
-    }
+document.getElementById("table").innerText=
+data.table.color+" "+data.table.value
 
-    connectSocket(currentRoom);
+let h=""
+
+data.hand.forEach(c=>{
+h+=`<button onclick='play(${JSON.stringify(c)})'>${c.color} ${c.value}</button>`
+})
+
+document.getElementById("hand").innerHTML=h
+
 }
 
-function readyUp() {
-    socket.send(JSON.stringify({
-        type: "ready"
-    }));
+if(data.type==="game_over"){
+alert("Loser: "+data.loser)
 }
 
-function drawCard() {
-    socket.send(JSON.stringify({
-        type: "draw"
-    }));
 }
 
-function pressUNO() {
-    socket.send(JSON.stringify({
-        type: "uno"
-    }));
 }
 
-function playCard(card) {
-    socket.send(JSON.stringify({
-        type: "play",
-        card: card
-    }));
+function start(){
+socket.send(JSON.stringify({type:"start"}))
 }
 
-function handleMessage(data) {
-
-    if (data.type === "players_update") {
-        updatePlayers(data.players);
-    }
-
-    if (data.type === "start_game") {
-        document.getElementById("currentTurn").innerText = data.current_turn;
-        renderTableCard(data.table_card);
-        renderYourCards(data.your_cards);
-    }
-
-    if (data.type === "update_state") {
-        document.getElementById("currentTurn").innerText = data.current_turn;
-        renderTableCard(data.table_card);
-        renderYourCards(data.your_cards);
-    }
-
-    if (data.type === "message") {
-        alert(data.message);
-    }
+function draw(){
+socket.send(JSON.stringify({type:"draw"}))
 }
 
-function updatePlayers(players) {
-    const list = document.getElementById("playersList");
-    list.innerHTML = "";
-
-    players.forEach(p => {
-        const div = document.createElement("div");
-        div.innerText = p;
-        list.appendChild(div);
-    });
-
-    document.getElementById("playersCount").innerText = "Players: " + players.length;
-}
-
-function renderTableCard(card) {
-    const table = document.getElementById("tableCard");
-    table.innerHTML = "";
-
-    if (!card) return;
-
-    const div = document.createElement("div");
-    div.className = "card";
-    div.style.background = getColor(card.color);
-    div.innerText = card.value;
-    table.appendChild(div);
-}
-
-function renderYourCards(cards) {
-    const area = document.getElementById("yourCards");
-    area.innerHTML = "";
-
-    cards.forEach(card => {
-        const div = document.createElement("div");
-        div.className = "card";
-        div.style.background = getColor(card.color);
-        div.innerText = card.value;
-        div.onclick = function() {
-            playCard(card);
-        };
-        area.appendChild(div);
-    });
-}
-
-function getColor(color) {
-    if (color === "Red") return "red";
-    if (color === "Blue") return "blue";
-    if (color === "Green") return "green";
-    if (color === "Yellow") return "gold";
-    if (color === "Wild") return "black";
-    return "gray";
+function play(card){
+socket.send(JSON.stringify({type:"play",card:card}))
 }
 
 </script>
