@@ -8,13 +8,13 @@
 
 body{
 margin:0;
-font-family:Segoe UI;
+font-family:Segoe UI, Arial;
 background:#0f172a;
 color:white;
 overflow:hidden;
 }
 
-/* lobby */
+/* ---------- LOBBY ---------- */
 
 #lobby{
 height:100vh;
@@ -22,13 +22,14 @@ display:flex;
 flex-direction:column;
 align-items:center;
 justify-content:center;
-gap:10px;
+gap:15px;
 }
 
 input{
 padding:10px;
 border-radius:6px;
 border:none;
+width:200px;
 }
 
 button{
@@ -40,7 +41,7 @@ background:#6366f1;
 color:white;
 }
 
-/* game */
+/* ---------- GAME ---------- */
 
 #game{
 display:none;
@@ -49,15 +50,15 @@ width:100vw;
 position:relative;
 }
 
-/* table */
+/* ---------- TABLE ---------- */
 
 #table{
 position:absolute;
 top:50%;
 left:50%;
 transform:translate(-50%,-50%);
-width:320px;
-height:220px;
+width:360px;
+height:230px;
 background:#14532d;
 border-radius:20px;
 display:flex;
@@ -65,42 +66,43 @@ align-items:center;
 justify-content:center;
 }
 
-/* center card */
-
 #tableCard{
-width:90px;
-height:130px;
-border-radius:12px;
+width:95px;
+height:135px;
+border-radius:10px;
 display:flex;
 align-items:center;
 justify-content:center;
-font-size:26px;
+font-size:28px;
 font-weight:bold;
 }
 
-/* players */
+/* ---------- PLAYERS CIRCLE ---------- */
 
-.player{
+#playersCircle{
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+width:700px;
+height:700px;
+pointer-events:none;
+}
+
+.playerSeat{
 position:absolute;
 background:#1e293b;
 padding:6px 10px;
 border-radius:8px;
-font-size:14px;
 display:flex;
 align-items:center;
 gap:6px;
+font-size:14px;
 }
 
-#p1{top:10px;left:50%;transform:translateX(-50%)}
-#p2{left:10px;top:50%;transform:translateY(-50%)}
-#p3{right:10px;top:50%;transform:translateY(-50%)}
-#p4{bottom:10px;left:50%;transform:translateX(-50%)}
-
-/* avatar */
-
 .avatar{
-width:32px;
-height:32px;
+width:30px;
+height:30px;
 border-radius:50%;
 display:flex;
 align-items:center;
@@ -108,53 +110,37 @@ justify-content:center;
 font-weight:bold;
 }
 
-/* card count */
-
-.count{
-background:#374151;
-padding:2px 6px;
-border-radius:6px;
-}
-
-/* active turn */
-
 .active-turn{
-box-shadow:0 0 12px #facc15;
 border:2px solid #facc15;
+box-shadow:0 0 10px #facc15;
 }
 
-/* hand */
+/* ---------- HAND ---------- */
 
 #hand{
 position:absolute;
-bottom:0;
-width:100%;
-display:flex;
-justify-content:center;
-padding:20px;
+bottom:25px;
+left:50%;
+transform:translateX(-50%);
+height:200px;
+width:700px;
 }
 
 /* cards */
 
 .card{
-width:80px;
-height:120px;
+width:95px;
+height:135px;
 border-radius:10px;
-margin:5px;
 display:flex;
 align-items:center;
 justify-content:center;
 font-weight:bold;
-font-size:22px;
-cursor:grab;
-transition:.2s;
+font-size:24px;
+cursor:pointer;
+position:absolute;
+transition:.25s;
 }
-
-.card:hover{
-transform:translateY(-10px);
-}
-
-/* colors */
 
 .red{background:#ef4444}
 .blue{background:#3b82f6}
@@ -162,20 +148,37 @@ transform:translateY(-10px);
 .yellow{background:#facc15;color:black}
 .wild{background:black}
 
-/* card dealing animation */
+.card:hover{
+transform:translateY(-12px);
+}
 
-.card-deal{
-animation:deal .4s ease;
+/* deal animation */
+
+.deal{
+animation:deal .35s ease;
 }
 
 @keyframes deal{
 from{
-transform:translateY(-200px) scale(.2);
+transform:translateY(-200px) scale(.3);
 opacity:0;
 }
 to{
 transform:translateY(0) scale(1);
 opacity:1;
+}
+}
+
+/* play animation */
+
+.play{
+animation:play .35s forwards;
+}
+
+@keyframes play{
+to{
+transform:translate(-200px,-260px) scale(.6);
+opacity:0;
 }
 }
 
@@ -185,8 +188,8 @@ opacity:1;
 position:absolute;
 top:50%;
 left:50%;
-width:80px;
-height:120px;
+width:90px;
+height:130px;
 border-radius:10px;
 animation:stackFly .6s ease forwards;
 }
@@ -202,25 +205,11 @@ opacity:1;
 }
 }
 
-/* mobile */
-
-@media(max-width:700px){
-
-.card{
-width:60px;
-height:90px;
-font-size:18px;
-}
-
-}
-
 </style>
 
 </head>
 
 <body>
-
-<!-- lobby -->
 
 <div id="lobby">
 
@@ -233,22 +222,13 @@ font-size:18px;
 
 </div>
 
-<!-- game -->
-
 <div id="game">
 
 <div id="table">
 <div id="tableCard"></div>
 </div>
 
-<div id="players">
-
-<div id="p1" class="player"></div>
-<div id="p2" class="player"></div>
-<div id="p3" class="player"></div>
-<div id="p4" class="player"></div>
-
-</div>
+<div id="playersCircle"></div>
 
 <div id="hand"></div>
 
@@ -260,11 +240,8 @@ let socket
 let username
 
 function wsURL(room){
-
-let protocol=location.protocol==="https:"?"wss://":"ws://"
-
-return protocol+location.host+"/ws/game/"+room+"/"
-
+let protocol = location.protocol === "https:" ? "wss://" : "ws://"
+return protocol + location.host + "/ws/game/" + room + "/"
 }
 
 function join(){
@@ -306,7 +283,7 @@ function avatar(name){
 
 let colors=["#ef4444","#3b82f6","#22c55e","#f59e0b"]
 
-let c=colors[name.length%colors.length]
+let c=colors[name.length % colors.length]
 
 return `<div class="avatar" style="background:${c}">${name[0]}</div>`
 
@@ -314,16 +291,28 @@ return `<div class="avatar" style="background:${c}">${name[0]}</div>`
 
 function renderPlayers(players){
 
-let ids=["p1","p2","p3","p4"]
+let container=document.getElementById("playersCircle")
+container.innerHTML=""
+
+let radius=280
+let center=350
 
 players.forEach((p,i)=>{
 
-if(ids[i]){
+let angle=(i/players.length)*2*Math.PI
 
-document.getElementById(ids[i]).innerHTML=
-avatar(p)+" "+p
+let x=center+radius*Math.cos(angle)
+let y=center+radius*Math.sin(angle)
 
-}
+let seat=document.createElement("div")
+
+seat.className="playerSeat"
+seat.style.left=x+"px"
+seat.style.top=y+"px"
+
+seat.innerHTML=avatar(p)+" "+p
+
+container.appendChild(seat)
 
 })
 
@@ -332,9 +321,7 @@ avatar(p)+" "+p
 function renderState(data){
 
 renderTable(data.table)
-
 renderHand(data.hand)
-
 highlightTurn(data.turn)
 
 if(data.pending>0){
@@ -345,69 +332,66 @@ stackAnimation("+"+data.pending)
 
 function renderTable(card){
 
+let el=document.getElementById("tableCard")
 let color=card.color.toLowerCase()
 
-let el=document.getElementById("tableCard")
-
 el.className="card "+color
-
 el.innerText=card.value
 
 }
 
 function renderHand(cards){
 
-let html=""
+let container=document.getElementById("hand")
+container.innerHTML=""
 
-cards.forEach(c=>{
+let spread=35
+let start=-(cards.length-1)*spread/2
 
-let color=c.color.toLowerCase()
+cards.forEach((card,i)=>{
 
-html+=`
-<div class="card card-deal ${color}"
-draggable="true"
-ondragstart='drag(event,${JSON.stringify(c)})'>
-${c.value}
-</div>
-`
+let el=document.createElement("div")
+
+let color=card.color.toLowerCase()
+
+el.className="card deal "+color
+el.innerText=card.value
+
+let angle=start+i*spread
+
+el.style.left=(i*50)+"px"
+el.style.transform=`rotate(${angle}deg)`
+
+el.onclick=(e)=>play(card,e)
+
+container.appendChild(el)
 
 })
 
-document.getElementById("hand").innerHTML=html
-
 }
 
-function drag(e,card){
+function play(card,e){
 
-e.dataTransfer.setData("card",JSON.stringify(card))
+let el=e.target
+el.classList.add("play")
 
-}
-
-document.getElementById("table").ondragover=(e)=>{
-
-e.preventDefault()
-
-}
-
-document.getElementById("table").ondrop=(e)=>{
-
-e.preventDefault()
-
-let card=JSON.parse(e.dataTransfer.getData("card"))
+setTimeout(()=>{
 
 socket.send(JSON.stringify({
 type:"play",
 card:card
 }))
 
+},250)
+
 }
 
 function highlightTurn(turn){
 
-document.querySelectorAll(".player")
+document.querySelectorAll(".playerSeat")
 .forEach(p=>p.classList.remove("active-turn"))
 
-document.querySelectorAll(".player")
+document.querySelectorAll(".playerSeat")
 .forEach(p=>{
 if(p.innerText.includes(turn)){
 p.classList.add("active-turn")
@@ -421,7 +405,6 @@ function stackAnimation(value){
 let card=document.createElement("div")
 
 card.className="card stack-fly wild"
-
 card.innerText=value
 
 document.body.appendChild(card)
