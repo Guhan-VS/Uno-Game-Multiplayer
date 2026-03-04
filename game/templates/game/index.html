@@ -8,13 +8,13 @@
 
 body{
 margin:0;
-font-family:Segoe UI, Arial;
+font-family:Segoe UI,Arial;
 background:#0f172a;
 color:white;
 overflow:hidden;
 }
 
-/* ---------- LOBBY ---------- */
+/* LOBBY */
 
 #lobby{
 height:100vh;
@@ -22,18 +22,18 @@ display:flex;
 flex-direction:column;
 align-items:center;
 justify-content:center;
-gap:15px;
+gap:12px;
 }
 
 input{
 padding:10px;
 border-radius:6px;
 border:none;
-width:200px;
+width:220px;
 }
 
 button{
-padding:10px 20px;
+padding:10px 18px;
 border:none;
 border-radius:6px;
 cursor:pointer;
@@ -41,7 +41,7 @@ background:#6366f1;
 color:white;
 }
 
-/* ---------- GAME ---------- */
+/* GAME */
 
 #game{
 display:none;
@@ -50,7 +50,7 @@ width:100vw;
 position:relative;
 }
 
-/* ---------- TABLE ---------- */
+/* TABLE */
 
 #table{
 position:absolute;
@@ -73,11 +73,11 @@ border-radius:10px;
 display:flex;
 align-items:center;
 justify-content:center;
-font-size:28px;
+font-size:26px;
 font-weight:bold;
 }
 
-/* ---------- PLAYERS CIRCLE ---------- */
+/* PLAYERS */
 
 #playersCircle{
 position:absolute;
@@ -97,12 +97,11 @@ border-radius:8px;
 display:flex;
 align-items:center;
 gap:6px;
-font-size:14px;
 }
 
 .avatar{
-width:30px;
-height:30px;
+width:28px;
+height:28px;
 border-radius:50%;
 display:flex;
 align-items:center;
@@ -115,18 +114,18 @@ border:2px solid #facc15;
 box-shadow:0 0 10px #facc15;
 }
 
-/* ---------- HAND ---------- */
+/* HAND */
 
 #hand{
 position:absolute;
-bottom:25px;
+bottom:20px;
 left:50%;
 transform:translateX(-50%);
 height:200px;
 width:700px;
 }
 
-/* cards */
+/* CARDS */
 
 .card{
 width:95px;
@@ -152,7 +151,7 @@ transition:.25s;
 transform:translateY(-12px);
 }
 
-/* deal animation */
+/* DEAL ANIMATION */
 
 .deal{
 animation:deal .35s ease;
@@ -169,7 +168,7 @@ opacity:1;
 }
 }
 
-/* play animation */
+/* PLAY ANIMATION */
 
 .play{
 animation:play .35s forwards;
@@ -182,7 +181,7 @@ opacity:0;
 }
 }
 
-/* stack animation */
+/* STACK ANIMATION */
 
 .stack-fly{
 position:absolute;
@@ -206,10 +205,11 @@ opacity:1;
 }
 
 </style>
-
 </head>
 
 <body>
+
+<!-- LOBBY -->
 
 <div id="lobby">
 
@@ -219,8 +219,11 @@ opacity:1;
 <input id="room" placeholder="Room Code">
 
 <button onclick="join()">Join Game</button>
+<button onclick="startGame()">Start Game</button>
 
 </div>
+
+<!-- GAME -->
 
 <div id="game">
 
@@ -279,6 +282,16 @@ renderState(data)
 
 }
 
+function startGame(){
+
+socket.send(JSON.stringify({
+type:"start"
+}))
+
+}
+
+/* AVATAR */
+
 function avatar(name){
 
 let colors=["#ef4444","#3b82f6","#22c55e","#f59e0b"]
@@ -288,6 +301,8 @@ let c=colors[name.length % colors.length]
 return `<div class="avatar" style="background:${c}">${name[0]}</div>`
 
 }
+
+/* PLAYERS */
 
 function renderPlayers(players){
 
@@ -318,6 +333,8 @@ container.appendChild(seat)
 
 }
 
+/* STATE */
+
 function renderState(data){
 
 renderTable(data.table)
@@ -339,6 +356,8 @@ el.className="card "+color
 el.innerText=card.value
 
 }
+
+/* HAND */
 
 function renderHand(cards){
 
@@ -370,6 +389,8 @@ container.appendChild(el)
 
 }
 
+/* PLAY */
+
 function play(card,e){
 
 let el=e.target
@@ -386,6 +407,8 @@ card:card
 
 }
 
+/* TURN */
+
 function highlightTurn(turn){
 
 document.querySelectorAll(".playerSeat")
@@ -399,6 +422,8 @@ p.classList.add("active-turn")
 })
 
 }
+
+/* STACK */
 
 function stackAnimation(value){
 
