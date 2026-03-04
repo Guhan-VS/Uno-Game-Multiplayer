@@ -141,16 +141,13 @@ animation:slideToTable .35s ease forwards;
 }
 
 @keyframes slideToTable{
-
 from{
 transform:translateY(0);
 }
-
 to{
 transform:translate(-300px,-250px) scale(.6);
 opacity:0;
 }
-
 }
 
 /* ---------- STACK ANIMATION ---------- */
@@ -171,17 +168,14 @@ animation:stackFly .6s ease forwards;
 }
 
 @keyframes stackFly{
-
 from{
 transform:translate(-50%,-50%) scale(.3);
 opacity:0;
 }
-
 to{
 transform:translate(-50%,-200%) scale(1);
 opacity:1;
 }
-
 }
 
 </style>
@@ -231,19 +225,26 @@ let socket
 let room
 let username
 
+/* ---------- WS URL ---------- */
+
 function wsURL(room){
 
-let protocol=location.protocol==="https:"?"wss://":"ws://"
+let protocol = location.protocol === "https:" ? "wss://" : "ws://"
 
-return protocol+location.host+"/ws/game/"+room+"/"
+return protocol + location.host + "/ws/game/" + room + "/"
 
 }
 
-/* CREATE ROOM */
+/* ---------- CREATE ROOM ---------- */
 
 function createRoom(){
 
 username=document.getElementById("username").value
+
+if(!username){
+alert("Enter username")
+return
+}
 
 room=Math.random().toString(36).substring(2,7).toUpperCase()
 
@@ -251,23 +252,36 @@ connect()
 
 }
 
-/* JOIN ROOM */
+/* ---------- JOIN ROOM ---------- */
 
 function joinRoom(){
 
 username=document.getElementById("username").value
-
 room=document.getElementById("roomInput").value
+
+if(!username){
+alert("Enter username")
+return
+}
+
+if(!room){
+alert("Enter room code")
+return
+}
 
 connect()
 
 }
+
+/* ---------- CONNECT ---------- */
 
 function connect(){
 
 socket=new WebSocket(wsURL(room))
 
 socket.onopen=()=>{
+
+console.log("connected")
 
 socket.send(JSON.stringify({
 type:"join",
@@ -298,38 +312,51 @@ renderGame(data)
 
 }
 
-/* START GAME */
+/* ---------- SAFE SEND ---------- */
+
+function safeSend(data){
+
+if(!socket || socket.readyState !== WebSocket.OPEN){
+console.log("socket not ready")
+return
+}
+
+socket.send(JSON.stringify(data))
+
+}
+
+/* ---------- START ---------- */
 
 function startGame(){
 
-socket.send(JSON.stringify({
+safeSend({
 type:"start"
-}))
+})
 
 }
 
-/* DRAW CARD */
+/* ---------- DRAW ---------- */
 
 function drawCard(){
 
-socket.send(JSON.stringify({
+safeSend({
 type:"draw"
-}))
+})
 
 }
 
-/* UNO */
+/* ---------- UNO ---------- */
 
 function pressUNO(){
 
-socket.send(JSON.stringify({
+safeSend({
 type:"uno",
 username:username
-}))
+})
 
 }
 
-/* PLAYERS */
+/* ---------- PLAYERS ---------- */
 
 function renderPlayers(players){
 
@@ -345,7 +372,6 @@ players.forEach((p,i)=>{
 let angle=(i/players.length)*2*Math.PI
 
 let x=center+radius*Math.cos(angle)
-
 let y=center+radius*Math.sin(angle)
 
 let crown=i===0?" 👑":""
@@ -355,7 +381,6 @@ let seat=document.createElement("div")
 seat.className="playerSeat"
 
 seat.style.left=x+"px"
-
 seat.style.top=y+"px"
 
 seat.innerText=p+crown
@@ -366,7 +391,7 @@ container.appendChild(seat)
 
 }
 
-/* RENDER GAME */
+/* ---------- RENDER GAME ---------- */
 
 function renderGame(data){
 
@@ -380,7 +405,7 @@ stackAnimation("+"+data.pending)
 
 }
 
-/* TABLE */
+/* ---------- TABLE ---------- */
 
 function renderTable(card){
 
@@ -392,7 +417,7 @@ el.innerText=card.value
 
 }
 
-/* HAND */
+/* ---------- HAND ---------- */
 
 function renderHand(cards){
 
@@ -401,7 +426,6 @@ let container=document.getElementById("hand")
 container.innerHTML=""
 
 let spread=35
-
 let start=-(cards.length-1)*spread/2
 
 cards.forEach((card,i)=>{
@@ -426,7 +450,7 @@ container.appendChild(div)
 
 }
 
-/* PLAY */
+/* ---------- PLAY ---------- */
 
 function play(card,element){
 
@@ -434,16 +458,16 @@ element.classList.add("play-card")
 
 setTimeout(()=>{
 
-socket.send(JSON.stringify({
+safeSend({
 type:"play",
 card:card
-}))
+})
 
 },200)
 
 }
 
-/* STACK */
+/* ---------- STACK ---------- */
 
 function stackAnimation(value){
 
